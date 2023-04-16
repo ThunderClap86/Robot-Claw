@@ -1,3 +1,5 @@
+#!/usr/bin/python
+# -*- coding: utf-8 -*-
 from pyPS4Controller.controller import Controller
 import threading
 import time
@@ -17,26 +19,26 @@ class MyController(Controller):
         self.open = 0
         self.up = 0
         self.down = 0
-	  self.rotateright =0
-	  self.rotateleft = 0
-	  self.wristup = 0
-	  self.wristdown = 0
+        self.rotateright = 0
+        self.rotateleft = 0
+        self.wristup = 0
+        self.wristdown = 0
 
     def on_L3_up(self, value):
-        self.forward = (value * (-1) / 32767.0)
+        self.forward = value * -1 / 32767.0
         self.backward = 0
 
     def on_L3_down(self, value):
         self.forward = 0
-        self.backward = (value / 32767.0)
+        self.backward = value / 32767.0
 
     def on_L3_left(self, value):
-        self.left = (value * (-1) / 32767.0)
+        self.left = value * -1 / 32767.0
         self.right = 0
 
     def on_L3_right(self, value):
         self.left = 0
-        self.right = (value / 32767.0)
+        self.right = value / 32767.0
 
     def on_L3_x_at_rest(self):
         self.left = 0
@@ -61,49 +63,44 @@ class MyController(Controller):
         self.open = 0
 
     def on_R3_up(self, value):
-        self.up = (value * (-1) / 32768.0)
+        self.up = value * -1 / 32768.0
         self.down = 0
 
     def on_R3_down(self, value):
         self.up = 0
-        self.down = (value / 32767.0)
+        self.down = value / 32767.0
 
     def on_R3_y_at_rest(self):
         self.up = 0
         self.down = 0
 
-   def on_R3_left(self, value):
+    def on_R3_left(self, value):
         self.wristup = 0
-        self.wristdown = (value / 32767.0)
+        self.wristdown = value / 32767.0
 
-   def on_R3_right(self, value):
-        self.wristup = 0
-        self.wristdown = (value / 32767.0)
+    def on_R3_right(self, value):
+        self.wristup = value / 32767.0
+        self.wristdown = 0
 
-   def on_R3_x_at_rest(self):
+    def on_R3_x_at_rest(self):
         self.wristup = 0
         self.wristdown = 0
-# if the following is re-mapped to one of the above, changing the self.rotatex
-# the servo will work. As it is mapped below, it returns an error AFTER the
-# represented button "R1 or L1" is pressed returning an error and stopping
-# the program
-## self.on_R1_press()
-##		TypeError: on_R1(or L1)_press() missing 1 required positional argument: 'value'
-   def on_R1_press(self, value):
+
+    def on_right_arrow_press(self, value):
         self.rotateright = (value + 32768) / 65535.0
         self.rotateleft = 0
 
-    def on_R1_release(self):
+    def on_right_arrow_release(self):
         self.rotateright = 0
 
-    def on_L1_press(self, value):
+    def on_left_arrow_press(self, value):
         self.rotateright = 0
         self.rotateleft = (value + 32768) / 65535.0
 
-    def on_L1_release(self):
+    def on_left_arrow_release(self):
         self.rotateleft = 0
 
-    
+
 class RoboArt(threading.Thread):
 
     S3_CLOSED = 500
@@ -126,7 +123,16 @@ class RoboArt(threading.Thread):
         self._lock = threading.Lock()
         self.controller = controller
 
-    def check(self, s0, s1, s2, s3, s4, s5):
+    def check(
+        self,
+        s0,
+        s1,
+        s2,
+        s3,
+        s4,
+        s5,
+        ):
+
         if s3 > RoboArt.S3_OPEN:
             s3 = RoboArt.S3_OPEN
         if s3 < RoboArt.S3_CLOSED:
@@ -143,20 +149,31 @@ class RoboArt(threading.Thread):
             s1 = RoboArt.S1_HIGH
         if s1 < RoboArt.S1_LOW:
             s1 = RoboArt.S1_LOW
-	  if s4 > RoboArt.S4_ROTATERIGHT:
+        if s4 > RoboArt.S4_ROTATERIGHT:
             s4 = RoboArt.S4_ROTATERIGHT
         if s4 < RoboArt.S4_ROTATELEFT:
             s4 = RoboArt.S4_ROTATELEFT
-        return s0, s1, s2, s3, s4, s5
+        if s5 > RoboArt.S5_WRISTUP:
+            s5 = RoboArt.S5_WRISTUP
+        if s5 < RoboArt.S5_WRISTDOWN:
+            s5 = RoboArt.S5_WRISTDOWN
+        return (
+            s0,
+            s1,
+            s2,
+            s3,
+            s4,
+            s5,
+            )
 
     def run(self):
-        servo0 = 1000 # what does this value represent?
+        servo0 = 1000
         servo1 = 1320
         servo2 = 1000
         servo3 = 1000
         servo4 = 1000
         servo5 = 1000
-	  
+
         while True:
             if controller.open > 0:
                 servo3 -= int(50 * controller.open)
@@ -174,26 +191,41 @@ class RoboArt(threading.Thread):
                 servo0 += int(25 * controller.forward)
             elif controller.backward > 0:
                 servo0 -= int(25 * controller.backward)
-	     if controller.rotateleft > 0:
-                servo4 += int(25 * controller.rotateleft)
-            elif controller.rotateright > 0:
-                servo4 -= int(25 * controller.rotateright)
             if controller.wristup > 0:
                 servo5 -= int(25 * controller.wristup)
             elif controller.wristdown > 0:
                 servo5 += int(25 * controller.wristdown)
+            if controller.rotateleft > 0:
+                servo4 += int(25 * controller.rotateleft)
+            elif conroller.rotateright > 0:
+                servo4 -= int(25 * controller.rotateright)
 
-			servo0, servo1, servo2, servo3, servo4, servo5 = self.check(servo0, servo1, servo2, servo3, servo4, servo5)
-			self.driver.setServoPulse(0, servo0)
-			self.driver.setServoPulse(1, servo1)
-			self.driver.setServoPulse(2, servo2)
-			self.driver.setServoPulse(3, servo3)
-			self.driver.setServoPulse(4, servo4)
-			self.driver.setServoPulse(5, servo5)
-			time.sleep(0.025)
+            (
+                servo0,
+                servo1,
+                servo2,
+                servo3,
+                servo4,
+                servo5,
+                ) = self.check(
+                servo0,
+                servo1,
+                servo2,
+                servo3,
+                servo4,
+                servo5,
+                )
+            self.driver.setServoPulse(0, servo0)
+            self.driver.setServoPulse(1, servo1)
+            self.driver.setServoPulse(2, servo2)
+            self.driver.setServoPulse(3, servo3)
+            self.driver.setServoPulse(4, servo4)
+            self.driver.setServoPulse(5, servo5)
+            time.sleep(0.025)
 
 
-controller = MyController(interface="/dev/input/js0", connecting_using_ds4drv=False)
+controller = MyController(interface='/dev/input/js0',
+                          connecting_using_ds4drv=False)
 arm = RoboArt(controller)
 arm.start()
 controller.listen(timeout=60)
