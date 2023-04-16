@@ -1,66 +1,199 @@
-import pygame
+from pyPS4Controller.controller import Controller
+import threading
 import time
-from adafruit_pca9685 import PCA9685
+from PCA9685 import PCA9685
 
-# Set up the PCA9685
-pca = PCA9685()
-pca.frequency = 50
 
-# Set up the servo channels
-servo_channel_1 = 0
-servo_channel_2 = 1
-servo_channel_3 = 2
-servo_channel_4 = 3
-servo_channel_5 = 4
-servo_channel_6 = 5
+class MyController(Controller):
 
-# Set up the servo min/max values (in microseconds)
-servo_min = 1000
-servo_max = 2000
+    def __init__(self, queue=None, **kwargs):
+        Controller.__init__(self, **kwargs)
+        self.queue = queue
+        self.left = 0
+        self.right = 0
+        self.forward = 0
+        self.backward = 0
+        self.close = 0
+        self.open = 0
+        self.up = 0
+        self.down = 0
+	  self.rotateright =0
+	  self.rotateleft = 0
+	  self.wristup = 0
+	  self.wristdown = 0
 
-# Set up the controller
-pygame.init()
-joystick = pygame.joystick.Joystick(0)
-joystick.init()
+    def on_L3_up(self, value):
+        self.forward = (value * (-1) / 32767.0)
+        self.backward = 0
 
-# Function to map joystick values to servo values
-def map_joystick_to_servo(joystick_value, servo_min, servo_max):
-    servo_range = servo_max - servo_min
-    mapped_value = int((joystick_value + 1) / 2 * servo_range + servo_min)
-    return mapped_value
+    def on_L3_down(self, value):
+        self.forward = 0
+        self.backward = (value / 32767.0)
 
-# Main loop
-try:
-    while True:
-        # Get the joystick events
-        for event in pygame.event.get():
-            if event.type == pygame.JOYBUTTONDOWN or event.type == pygame.JOYAXISMOTION:
-                # Get the joystick values
-                left_stick_x = joystick.get_axis(0)
-                left_stick_y = joystick.get_axis(1)
-                right_stick_x = joystick.get_axis(2)
-                right_stick_y = joystick.get_axis(3)
-                L1 = joystick.get_button(4)
-                R1 = joystick.get_button(5)
-                L2 = joystick.get_axis(2)
-                R2 = joystick.get_axis(5)
-                
-                # Map the joystick values to servo values
-                mapped_left_stick_y = map_joystick_to_servo(-left_stick_y, servo_min, servo_max)
-                mapped_right_stick_y = map_joystick_to_servo(-right_stick_y, servo_min, servo_max)
-                mapped_left_stick_x = map_joystick_to_servo(left_stick_x, servo_min, servo_max)
-                mapped_right_stick_x = map_joystick_to_servo(right_stick_x, servo_min, servo_max)
-                mapped_L1 = map_joystick_to_servo(L1, servo_min, servo_max)
-                mapped_R1 = map_joystick_to_servo(R1, servo_min, servo_max)
-                mapped_L2 = map_joystick_to_servo(L2, servo_min, servo_max)
-                mapped_R2 = map_joystick_to_servo(R2, servo_min, servo_max)
-                
-                # Set the servo values based on the joystick values
-                pca.channels[servo_channel_1].duty_cycle = mapped_L1
-                pca.channels[servo_channel_6].duty_cycle = mapped_R1
-                pca.channels[servo_channel_2].duty_cycle = mapped_left_stick_y
-                pca.channels[servo_channel_3].duty_cycle = mapped_right_stick_y
-                pca.channels[servo_channel_4].duty_cycle = mapped_left_stick_x
-                pca.channels[servo_channel_5].duty_cycle = mapped_right_stick_x
-except KeyboardInterrupt:
-    joystick.quit()
+    def on_L3_left(self, value):
+        self.left = (value * (-1) / 32767.0)
+        self.right = 0
+
+    def on_L3_right(self, value):
+        self.left = 0
+        self.right = (value / 32767.0)
+
+    def on_L3_x_at_rest(self):
+        self.left = 0
+        self.right = 0
+
+    def on_L3_y_at_rest(self):
+        self.forward = 0
+        self.backward = 0
+
+    def on_L2_press(self, value):
+        self.close = (value + 32768) / 65535.0
+        self.open = 0
+
+    def on_L2_release(self):
+        self.close = 0
+
+    def on_R2_press(self, value):
+        self.close = 0
+        self.open = (value + 32768) / 65535.0
+
+    def on_R2_release(self):
+        self.open = 0
+
+    def on_R3_up(self, value):
+        self.up = (value * (-1) / 32768.0)
+        self.down = 0
+
+    def on_R3_down(self, value):
+        self.up = 0
+        self.down = (value / 32767.0)
+
+    def on_R3_y_at_rest(self):
+        self.up = 0
+        self.down = 0
+
+   def on_R3_left(self, value):
+        self.wristup = 0
+        self.wristdown = (value / 32767.0)
+
+   def on_R3_right(self, value):
+        self.wristup = 0
+        self.wristdown = (value / 32767.0)
+
+   def on_R3_x_at_rest(self):
+        self.wristup = 0
+        self.wristdown = 0
+# if the following is re-mapped to one of the above, changing the self.rotatex
+# the servo will work. As it is mapped below, it returns an error AFTER the
+# represented button "R1 or L1" is pressed returning an error and stopping
+# the program
+## self.on_R1_press()
+##		TypeError: on_R1(or L1)_press() missing 1 required positional argument: 'value'
+   def on_R1_press(self, value):
+        self.rotateright = (value + 32768) / 65535.0
+        self.rotateleft = 0
+
+    def on_R1_release(self):
+        self.rotateright = 0
+
+    def on_L1_press(self, value):
+        self.rotateright = 0
+        self.rotateleft = (value + 32768) / 65535.0
+
+    def on_L1_release(self):
+        self.rotateleft = 0
+
+    
+class RoboArt(threading.Thread):
+
+    S3_CLOSED = 500
+    S3_OPEN = 2000
+    S0_IN = 600
+    S0_OUT = 2000
+    S2_LEFT = 500
+    S2_RIGHT = 2000
+    S1_HIGH = 3000
+    S1_LOW = 200
+    S4_ROTATERIGHT = 3000
+    S4_ROTATELEFT = 500
+    S5_WRISTUP = 3000
+    S5_WRISTDOWN = 500
+
+    def __init__(self, controller):
+        threading.Thread.__init__(self)
+        self.driver = PCA9685(0x40, debug=False)
+        self.driver.setPWMFreq(50)
+        self._lock = threading.Lock()
+        self.controller = controller
+
+    def check(self, s0, s1, s2, s3, s4, s5):
+        if s3 > RoboArt.S3_OPEN:
+            s3 = RoboArt.S3_OPEN
+        if s3 < RoboArt.S3_CLOSED:
+            s3 = RoboArt.S3_CLOSED
+        if s2 > RoboArt.S2_RIGHT:
+            s2 = RoboArt.S2_RIGHT
+        if s2 < RoboArt.S2_LEFT:
+            s2 = RoboArt.S2_LEFT
+        if s0 > RoboArt.S0_OUT:
+            s0 = RoboArt.S0_OUT
+        if s0 < RoboArt.S0_IN:
+            s0 = RoboArt.S0_IN
+        if s1 > RoboArt.S1_HIGH:
+            s1 = RoboArt.S1_HIGH
+        if s1 < RoboArt.S1_LOW:
+            s1 = RoboArt.S1_LOW
+	  if s4 > RoboArt.S4_ROTATERIGHT:
+            s4 = RoboArt.S4_ROTATERIGHT
+        if s4 < RoboArt.S4_ROTATELEFT:
+            s4 = RoboArt.S4_ROTATELEFT
+        return s0, s1, s2, s3, s4, s5
+
+    def run(self):
+        servo0 = 1000 # what does this value represent?
+        servo1 = 1320
+        servo2 = 1000
+        servo3 = 1000
+        servo4 = 1000
+        servo5 = 1000
+	  
+        while True:
+            if controller.open > 0:
+                servo3 -= int(50 * controller.open)
+            elif controller.close:
+                servo3 += int(50 * controller.close)
+            if controller.left > 0:
+                servo2 += int(25 * controller.left)
+            elif controller.right > 0:
+                servo2 -= int(25 * controller.right)
+            if controller.up > 0:
+                servo1 -= int(25 * controller.up)
+            elif controller.down > 0:
+                servo1 += int(25 * controller.down)
+            if controller.forward > 0:
+                servo0 += int(25 * controller.forward)
+            elif controller.backward > 0:
+                servo0 -= int(25 * controller.backward)
+	     if controller.rotateleft > 0:
+                servo4 += int(25 * controller.rotateleft)
+            elif controller.rotateright > 0:
+                servo4 -= int(25 * controller.rotateright)
+            if controller.wristup > 0:
+                servo5 -= int(25 * controller.wristup)
+            elif controller.wristdown > 0:
+                servo5 += int(25 * controller.wristdown)
+
+			servo0, servo1, servo2, servo3, servo4, servo5 = self.check(servo0, servo1, servo2, servo3, servo4, servo5)
+			self.driver.setServoPulse(0, servo0)
+			self.driver.setServoPulse(1, servo1)
+			self.driver.setServoPulse(2, servo2)
+			self.driver.setServoPulse(3, servo3)
+			self.driver.setServoPulse(4, servo4)
+			self.driver.setServoPulse(5, servo5)
+			time.sleep(0.025)
+
+
+controller = MyController(interface="/dev/input/js0", connecting_using_ds4drv=False)
+arm = RoboArt(controller)
+arm.start()
+controller.listen(timeout=60)
